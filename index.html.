@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prévention IST - Le Quiz V3</title>
+    <!-- On utilise Tailwind CSS pour un design moderne et responsive -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Style pour les émojis des questions */
+        .question-emoji {
+            font-size: 8rem; /* Rend l'émoji très grand */
+            line-height: 1;
+        }
+    </style>
+    <!-- Bibliothèque pour générer une image du diplôme -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <!-- Conteneur principal du jeu -->
+    <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-2xl">
+        <h1 class="text-3xl font-bold text-center text-blue-800 mb-6">Prévention IST - Le Quiz</h1>
+
+        <!-- Écran d'accueil pour le nom -->
+        <div id="start-screen" class="text-center">
+            <p class="text-lg text-gray-700 mb-4">Entre ton prénom pour commencer le quiz et obtenir ton diplôme à la fin !</p>
+            <input type="text" id="name-input" placeholder="Ton prénom" class="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow mb-4">
+            <button id="start-button" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-full shadow-md hover:bg-blue-700 transition-colors duration-200">
+                Commencer le quiz
+            </button>
+        </div>
+
+        <!-- Zone du quiz (initialement cachée) -->
+        <div id="quiz-container" class="hidden">
+            <!-- Barre de progression -->
+            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-6">
+                <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-in-out" style="width: 0%;"></div>
+            </div>
+
+            <!-- Zone de la question -->
+            <div id="question-box" class="bg-blue-50 p-6 rounded-xl mb-6">
+                <!-- L'émoji sera affiché ici -->
+                <div class="flex justify-center mb-4">
+                     <span id="question-emoji" class="question-emoji"></span>
+                </div>
+                <h2 id="question-text" class="text-xl font-semibold text-blue-900 mb-4 text-center"></h2>
+                <div id="answer-buttons" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Les boutons de réponse seront générés ici par le JavaScript -->
+                </div>
+            </div>
+
+            <!-- Zone de feedback et score -->
+            <div id="feedback-box" class="mb-6">
+                <p id="feedback-text" class="text-lg font-medium text-center"></p>
+                <div id="explanation-box" class="mt-4 p-4 rounded-lg hidden">
+                    <p id="explanation-text" class="text-sm italic"></p>
+                </div>
+            </div>
+
+            <!-- Boutons de navigation -->
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <p class="text-lg font-medium text-gray-700">Score :</p>
+                    <span id="score" class="text-2xl font-bold text-green-600">0</span>
+                </div>
+                <button id="next-button" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-full shadow-md hover:bg-blue-700 transition-colors duration-200 hidden">
+                    Suivant
+                </button>
+            </div>
+        </div>
+
+        <!-- Conteneur du diplôme (initialement caché) -->
+        <div id="diploma-container" class="hidden">
+            <div id="diploma-card" class="bg-gradient-to-br from-blue-200 to-white p-8 rounded-2xl shadow-2xl relative border-4 border-blue-500">
+                <div class="text-center mb-6">
+                    <span class="text-6xl text-yellow-500">🏆</span>
+                </div>
+                <p class="text-3xl font-light text-center text-blue-900 mb-2">Diplôme de la santé sexuelle</p>
+                <p class="text-2xl font-bold text-center text-blue-700 mb-4">est décerné à</p>
+                <p id="diploma-name" class="text-5xl font-extrabold text-center text-blue-800 italic mb-6"></p>
+                <p class="text-xl text-center text-gray-600">Pour avoir complété le quiz avec un score exceptionnel.</p>
+                <p class="text-2xl font-bold text-center text-green-600 mt-4">Score final : <span id="final-score"></span> / 10</p>
+                <p class="text-sm text-center text-gray-500 mt-4">Maintenant que tu es un(e) pro, n'hésite pas à partager tes connaissances (pas les IST !).</p>
+            </div>
+            <div class="mt-6 flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+                <button id="download-button" class="bg-green-600 text-white font-bold py-3 px-6 rounded-full shadow-md hover:bg-green-700 transition-colors duration-200">
+                    Télécharger le diplôme
+                </button>
+                <button id="restart-button-end" class="bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-full shadow-md hover:bg-gray-500 transition-colors duration-200">
+                    Recommencer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tableau des questions et réponses pour le quiz, avec des émojis pour les questions
+        const questions = [
+            {
+                question: "Est-il possible d'avoir une IST sans ressentir de symptômes ?",
+                emoji: "🔍",
+                answers: [
+                    { text: "Oui, c'est très fréquent.", correct: true, explanation: "Absolument. De nombreuses IST sont asymptomatiques, ce qui les rend difficiles à détecter sans dépistage." },
+                    { text: "Non, toutes les IST ont des symptômes visibles.", correct: false, explanation: "C'est une idée reçue. Beaucoup d'IST ne présentent pas de symptômes, et c'est ce qui les rend si insidieuses." }
+                ]
+            },
+            {
+                question: "La pilule contraceptive protège-t-elle contre les IST ?",
+                emoji: "💊",
+                answers: [
+                    { text: "Oui, elle protège aussi bien des IST que de la grossesse.", correct: false, explanation: "Non, la pilule est une méthode de contraception hormonale qui protège de la grossesse, mais n'a aucun effet sur la transmission des IST." },
+                    { text: "Non, elle ne protège que de la grossesse.", correct: true, explanation: "C'est exact. La pilule agit sur l'ovulation pour prévenir une grossesse, mais elle ne crée pas de barrière physique contre les infections." }
+                ]
+            },
+            {
+                question: "Le dépistage des IST est-il gratuit ?",
+                emoji: "💉",
+                answers: [
+                    { text: "Non, il est toujours payant.", correct: false, explanation: "Faux. Dans les Centres de Santé Sexuelle et les CeGIDD, le dépistage est entièrement gratuit et anonyme." },
+                    { text: "Oui, dans certains centres spécialisés.", correct: true, explanation: "Oui, dans de nombreux centres comme les CeGIDD, le dépistage est gratuit pour tous, même les mineurs." }
+                ]
+            },
+            {
+                question: "Quand faut-il utiliser un préservatif ?",
+                emoji: "🛡️",
+                answers: [
+                    { text: "Uniquement avec des partenaires qu'on ne connaît pas bien.", correct: false, explanation: "Faux. Il est crucial d'utiliser un préservatif à chaque rapport, y compris avec un ou une partenaire régulier, tant qu'il n'y a pas eu de dépistage mutuel." },
+                    { text: "Dès le début du rapport sexuel.", correct: true, explanation: "C'est la bonne réponse. L'utilisation du préservatif doit se faire dès le début du rapport pour éviter le risque de contamination." }
+                ]
+            },
+            {
+                question: "Où peut-on se renseigner de manière confidentielle sur les IST ?",
+                emoji: "🤫",
+                answers: [
+                    { text: "À la télévision ou sur les réseaux sociaux.", correct: false, explanation: "Ce sont des sources d'information, mais pas toujours fiables. Il est préférable de se fier à des professionnels." },
+                    { text: "Auprès de l'infirmière scolaire, dans un centre de santé sexuelle, ou avec un médecin.", correct: true, explanation: "Oui, ces professionnels sont formés pour t'écouter, te conseiller et répondre à tes questions en toute confidentialité." }
+                ]
+            },
+            {
+                question: "Peut-on attraper une IST en utilisant la même seringue qu'une autre personne ?",
+                emoji: "🩸",
+                answers: [
+                    { text: "Oui, car le sang est un mode de transmission de certaines IST comme le VIH ou l'hépatite.", correct: true, explanation: "Oui, c'est exact. L'échange de seringues est un risque majeur pour les IST transmissibles par le sang." },
+                    { text: "Non, les IST se transmettent uniquement par voie sexuelle.", correct: false, explanation: "Non, certaines IST comme le VIH et l'hépatite C peuvent se transmettre par le sang." }
+                ]
+            },
+            {
+                question: "Faut-il parler de sa santé sexuelle à son partenaire ?",
+                emoji: "💬",
+                answers: [
+                    { text: "Non, c'est un sujet privé qu'il ne faut pas aborder.", correct: false, explanation: "Faux. C'est au contraire une étape essentielle. La communication et la confiance sont la base d'une sexualité saine." },
+                    { text: "Oui, pour établir une relation de confiance et s'assurer que l'on se protège mutuellement.", correct: true, explanation: "Oui, la communication est cruciale pour que chacun se sente en sécurité et pour prendre des décisions éclairées." }
+                ]
+            },
+            {
+                question: "Peut-on attraper une IST en ayant un rapport oral non protégé ?",
+                emoji: "👄",
+                answers: [
+                    { text: "Non, les IST ne se transmettent que par voie vaginale et anale.", correct: false, explanation: "Faux. Les IST peuvent se transmettre par voie buccale car les muqueuses de la bouche peuvent être une porte d'entrée pour les infections." },
+                    { text: "Oui, l'utilisation du préservatif est recommandée pour tous types de rapports sexuels.", correct: true, explanation: "Oui, c'est la bonne réponse. Il est important d'utiliser un préservatif, même lors d'un rapport oral." }
+                ]
+            },
+            {
+                question: "Si l'on a une IST, le traitement est-il toujours efficace ?",
+                emoji: "💊",
+                answers: [
+                    { text: "Oui, il existe un traitement pour toutes les IST et il est toujours efficace.", correct: false, explanation: "C'est une fausse information. Certaines IST comme l'herpès ou le VIH ne peuvent pas être guéries, mais elles peuvent être traitées pour contrôler les symptômes." },
+                    { text: "Le traitement est efficace pour la plupart des IST, mais certaines sont incurables et doivent être contrôlées.", correct: true, explanation: "C'est la bonne réponse. Les IST d'origine bactérienne se soignent. Les IST virales sont incurables mais peuvent être contrôlées." }
+                ]
+            },
+            {
+                question: "Quelle est la meilleure approche pour la prévention des IST ?",
+                emoji: "🧠",
+                answers: [
+                    { text: "Compter uniquement sur la chance.", correct: false, explanation: "Non, la prévention ne doit pas être laissée au hasard. Elle nécessite de la connaissance et de la responsabilité." },
+                    { text: "La combinaison de l'information, du dépistage régulier et de l'utilisation du préservatif.", correct: true, explanation: "Oui, c'est la stratégie la plus complète et la plus efficace pour se protéger et protéger les autres." }
+                ]
+            }
+        ];
+
+        // Déclaration des éléments DOM pour pouvoir les manipuler
+        const startScreen = document.getElementById('start-screen');
+        const nameInput = document.getElementById('name-input');
+        const startButton = document.getElementById('start-button');
+        const quizContainer = document.getElementById('quiz-container');
+        const questionTextElement = document.getElementById('question-text');
+        const questionEmojiElement = document.getElementById('question-emoji');
+        const answerButtonsElement = document.getElementById('answer-buttons');
+        const nextButton = document.getElementById('next-button');
+        const feedbackTextElement = document.getElementById('feedback-text');
+        const explanationBox = document.getElementById('explanation-box');
+        const explanationTextElement = document.getElementById('explanation-text');
+        const scoreElement = document.getElementById('score');
+        const progressBar = document.getElementById('progress-bar');
+        const diplomaContainer = document.getElementById('diploma-container');
+        const diplomaNameElement = document.getElementById('diploma-name');
+        const finalScoreElement = document.getElementById('final-score');
+        const downloadButton = document.getElementById('download-button');
+        const restartButtonEnd = document.getElementById('restart-button-end');
+        let userName = '';
+
+        // Fonction pour mélanger un tableau (algorithme de Fisher-Yates)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // Fonction pour démarrer le jeu après avoir entré le nom
+        startButton.addEventListener('click', () => {
+            const name = nameInput.value.trim();
+            if (name) {
+                userName = name;
+                startScreen.classList.add('hidden');
+                quizContainer.classList.remove('hidden');
+                startGame();
+            } else {
+                alert("Veuillez entrer votre prénom pour commencer.");
+            }
+        });
+
+        // Fonction pour démarrer ou redémarrer le jeu
+        function startGame() {
+            currentQuestionIndex = 0;
+            score = 0;
+            scoreElement.textContent = score;
+            nextButton.classList.add('hidden');
+            quizContainer.classList.remove('hidden');
+            diplomaContainer.classList.add('hidden');
+            showQuestion();
+            updateProgressBar();
+        }
+
+        // Fonction pour afficher la question et les réponses
+        function showQuestion() {
+            // Réinitialise les messages et les boutons
+            resetState();
+            let currentQuestion = questions[currentQuestionIndex];
+            questionEmojiElement.textContent = currentQuestion.emoji; // Met à jour l'émoji
+            questionTextElement.textContent = currentQuestion.question;
+
+            // Mélange l'ordre des réponses
+            shuffleArray(currentQuestion.answers);
+
+            // Crée dynamiquement les boutons de réponse pour la question actuelle
+            currentQuestion.answers.forEach(answer => {
+                const button = document.createElement('button');
+                button.textContent = answer.text;
+                button.classList.add(
+                    'bg-blue-100', 'text-blue-900', 'font-medium', 'py-3', 'px-4', 'rounded-lg', 'shadow-sm',
+                    'hover:bg-blue-200', 'transition-colors', 'duration-200', 'text-left', 'text-sm'
+                );
+                // Ajoute une classe spéciale si c'est la bonne réponse (pour la vérification)
+                if (answer.correct) {
+                    button.dataset.correct = "true";
+                }
+                button.addEventListener('click', () => selectAnswer(button, answer));
+                answerButtonsElement.appendChild(button);
+            });
+        }
+
+        // Fonction pour réinitialiser l'état du jeu avant de montrer une nouvelle question
+        function resetState() {
+            nextButton.classList.add('hidden');
+            feedbackTextElement.textContent = '';
+            explanationBox.classList.add('hidden');
+            while (answerButtonsElement.firstChild) {
+                answerButtonsElement.removeChild(answerButtonsElement.firstChild);
+            }
+        }
+
+        // Fonction appelée quand une réponse est sélectionnée
+        function selectAnswer(selectedButton, answer) {
+            const isCorrect = selectedButton.dataset.correct === "true";
+            let feedbackColor = 'text-red-600';
+
+            // Vérifie si la réponse est correcte et met à jour le score et le feedback
+            if (isCorrect) {
+                score++;
+                scoreElement.textContent = score;
+                feedbackTextElement.textContent = "Bonne réponse ! 🎉";
+                feedbackColor = 'text-green-600';
+            } else {
+                feedbackTextElement.textContent = "Mauvaise réponse. 😔";
+            }
+
+            // Met à jour la couleur du texte de feedback
+            feedbackTextElement.classList.remove('text-red-600', 'text-green-600');
+            feedbackTextElement.classList.add(feedbackColor);
+            
+            // Affiche l'explication et change la couleur des boutons
+            explanationTextElement.textContent = answer.explanation;
+            explanationBox.classList.remove('hidden');
+            explanationBox.classList.add(isCorrect ? 'bg-green-100' : 'bg-red-100');
+
+            Array.from(answerButtonsElement.children).forEach(button => {
+                if (button.dataset.correct === "true") {
+                    button.classList.add('bg-green-200', 'text-green-800');
+                    button.classList.remove('bg-blue-100');
+                } else {
+                    button.classList.add('bg-red-200', 'text-red-800');
+                    button.classList.remove('bg-blue-100');
+                }
+                button.disabled = true; // Désactive tous les boutons après la réponse
+            });
+
+            // Affiche le bouton "Suivant"
+            nextButton.classList.remove('hidden');
+        }
+
+        // Fonction pour mettre à jour la barre de progression
+        function updateProgressBar() {
+            const progress = ((currentQuestionIndex) / questions.length) * 100;
+            progressBar.style.width = `${progress}%`;
+        }
+
+        // Fonction pour passer à la question suivante
+        nextButton.addEventListener('click', () => {
+            currentQuestionIndex++;
+            updateProgressBar();
+            if (currentQuestionIndex < questions.length) {
+                showQuestion();
+            } else {
+                showEndScreen();
+            }
+        });
+
+        // Fonction pour afficher l'écran de fin de jeu
+        function showEndScreen() {
+            quizContainer.classList.add('hidden');
+            diplomaContainer.classList.remove('hidden');
+            diplomaNameElement.textContent = userName;
+            finalScoreElement.textContent = score;
+        }
+
+        // Fonction pour télécharger le diplôme
+        downloadButton.addEventListener('click', () => {
+            const diplomaCard = document.getElementById('diploma-card');
+            html2canvas(diplomaCard).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Diplome-Quiz-IST-${userName}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        });
+
+        // Écouteur pour le bouton de redémarrage sur l'écran de fin
+        restartButtonEnd.addEventListener('click', () => {
+            diplomaContainer.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+            nameInput.value = '';
+        });
+    </script>
+</body>
+</html>
